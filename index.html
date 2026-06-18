@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="theme-color" content="#0a0a14"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Naveen Tasks"/>
+  <link rel="manifest" href="manifest.json"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <title>NAVEEN — Tasks</title>
+  <style>
+    :root {
+      --bg:#0a0a14; --surface:#11111f; --card:#161626;
+      --border:rgba(255,255,255,0.07);
+      --accent:#e8ff47; --accent2:#ff6b35; --accent3:#00e5ff;
+      --text:#f0f0fa; --muted:#555570;
+      --high:#ff4d6d; --med:#ffb830; --low:#39e58c;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    html,body{height:100%;overflow:hidden}
+    body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;display:flex;flex-direction:column;user-select:none}
+
+    /* NOTIF PERMISSION BANNER */
+    #permBanner{
+      display:none; background:linear-gradient(90deg,rgba(232,255,71,0.12),rgba(255,107,53,0.12));
+      border-bottom:1px solid rgba(232,255,71,0.2);
+      padding:10px 16px; align-items:center; gap:10px; flex-shrink:0;
+      position:relative; z-index:20;
+    }
+    #permBanner.show{display:flex}
+    #permBanner span{flex:1;font-size:12.5px;color:#ccc;line-height:1.4}
+    #permBanner button{
+      background:var(--accent);border:none;border-radius:8px;
+      color:#000;font-size:12px;font-weight:700;font-family:'Syne';
+      padding:7px 14px;cursor:pointer;white-space:nowrap;flex-shrink:0
+    }
+    #permBannerClose{background:none!important;color:var(--muted)!important;font-size:20px;padding:4px 6px!important}
+
+    /* OFFLINE BAR */
+    .offline-bar{
+      display:none;background:rgba(255,77,109,0.15);
+      border-bottom:1px solid rgba(255,77,109,0.2);
+      padding:6px 16px;font-size:11px;color:var(--high);
+      text-align:center;font-weight:500;flex-shrink:0;position:relative;z-index:5
+    }
+    body.offline .offline-bar{display:block}
+
+    /* TOAST */
+    #toast{
+      position:fixed;top:12px;left:10px;right:10px;z-index:9999;
+      background:var(--card);border:1px solid rgba(232,255,71,0.3);
+      border-radius:16px;padding:13px 15px;
+      display:none;gap:11px;align-items:flex-start;
+      box-shadow:0 16px 48px rgba(0,0,0,0.6),0 0 0 1px rgba(232,255,71,0.08);
+    }
+    #toast.show{display:flex;animation:toastIn .35s cubic-bezier(.175,.885,.32,1.2)}
+    @keyframes toastIn{from{opacity:0;transform:translateY(-18px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+    .t-icon{font-size:22px;flex-shrink:0;margin-top:1px}
+    .t-body{flex:1}
+    .t-title{font-family:'Syne';font-size:13px;font-weight:700;color:var(--accent);margin-bottom:2px}
+    .t-msg{font-size:12px;color:#aaa;line-height:1.45}
+    .t-close{background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:0;line-height:1;flex-shrink:0}
+
+    /* HEADER */
+    header{position:relative;z-index:10;padding:16px 18px 13px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+    .h-greeting{font-size:10px;font-weight:300;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:1px}
+    .h-name{font-family:'Syne';font-weight:800;font-size:26px;letter-spacing:-1px;line-height:1;background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 55%,var(--accent3) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .h-actions{display:flex;gap:8px}
+    .h-btn{width:40px;height:40px;border-radius:12px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .2s;position:relative}
+    .h-btn:active{transform:scale(.9)}
+    #bellBtn{background:rgba(232,255,71,0.1);color:var(--accent)}
+    #bellBtn.granted{background:rgba(57,229,140,0.12);color:var(--low)}
+    #bellBtn.denied{background:rgba(255,77,109,0.1);color:var(--high)}
+    .h-badge{position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:var(--high);font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid var(--surface);color:#fff;display:none}
+
+    /* STATS */
+    .stats-row{display:flex;gap:8px;padding:12px 14px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;position:relative;z-index:5}
+    .stats-row::-webkit-scrollbar{display:none}
+    .stat{flex-shrink:0;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:8px 14px;display:flex;flex-direction:column;align-items:center;gap:2px}
+    .stat-n{font-family:'Syne';font-weight:800;font-size:22px;line-height:1}
+    .stat-l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+
+    /* PROGRESS */
+    .prog-wrap{padding:0 14px 10px;background:var(--surface);flex-shrink:0;position:relative;z-index:5}
+    .prog-lbl{font-size:10px;color:var(--muted);text-align:right;margin-bottom:4px;font-family:'Syne';font-weight:700}
+    .prog-track{height:4px;background:rgba(255,255,255,0.07);border-radius:99px;overflow:hidden}
+    .prog-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .6s ease}
+
+    /* SEARCH */
+    .search-wrap{padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;position:relative;z-index:5}
+    .search-icon{position:absolute;left:26px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none}
+    .search-inp{width:100%;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 12px 10px 36px;color:var(--text);font-family:'DM Sans';font-size:14px;outline:none;-webkit-appearance:none}
+    .search-inp:focus{border-color:rgba(232,255,71,0.3)}
+    .search-inp::placeholder{color:var(--muted)}
+
+    /* TABS */
+    .tabs{display:flex;padding:8px 14px;gap:6px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
+    .tabs::-webkit-scrollbar{display:none}
+    .tab{flex-shrink:0;padding:7px 14px;border-radius:10px;border:1px solid transparent;font-family:'DM Sans';font-size:12.5px;font-weight:500;cursor:pointer;transition:all .2s;background:transparent;color:var(--muted);white-space:nowrap}
+    .tab.active{background:rgba(232,255,71,0.1);border-color:rgba(232,255,71,0.25);color:var(--accent)}
+    .tab:active{transform:scale(.95)}
+
+    /* MAIN */
+    main{flex:1;overflow-y:auto;padding:14px;-webkit-overflow-scrolling:touch}
+    main::-webkit-scrollbar{width:3px}
+    main::-webkit-scrollbar-thumb{background:rgba(232,255,71,0.2);border-radius:99px}
+
+    /* TASK CARD */
+    .task-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:13px 14px;margin-bottom:9px;display:flex;gap:11px;align-items:flex-start;position:relative;overflow:hidden;animation:slideUp .28s ease both;transition:opacity .2s}
+    @keyframes slideUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+    .task-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px}
+    .task-card.high::before{background:var(--high)}
+    .task-card.medium::before{background:var(--med)}
+    .task-card.low::before{background:var(--low)}
+    .task-card.done{opacity:.42}
+    .chk{width:22px;height:22px;border-radius:7px;flex-shrink:0;cursor:pointer;border:2px solid var(--border);background:transparent;display:flex;align-items:center;justify-content:center;transition:all .2s;margin-top:1px}
+    .chk.on{background:var(--accent);border-color:var(--accent)}
+    .chk.on::after{content:'✓';font-size:13px;color:#000;font-weight:900}
+    .task-body{flex:1;min-width:0}
+    .task-txt{font-size:14px;color:var(--text);line-height:1.45;word-break:break-word}
+    .task-card.done .task-txt{text-decoration:line-through;color:var(--muted)}
+    .task-sub{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.4}
+    .task-meta{display:flex;gap:6px;align-items:center;margin-top:7px;flex-wrap:wrap}
+    .tag{font-size:10px;padding:2px 8px;border-radius:99px;font-weight:500;letter-spacing:.4px}
+    .tag.high{background:rgba(255,77,109,.14);color:var(--high);border:1px solid rgba(255,77,109,.2)}
+    .tag.medium{background:rgba(255,184,48,.14);color:var(--med);border:1px solid rgba(255,184,48,.2)}
+    .tag.low{background:rgba(57,229,140,.14);color:var(--low);border:1px solid rgba(57,229,140,.2)}
+    .tag.due{background:rgba(255,255,255,.05);color:var(--muted);border:1px solid var(--border)}
+    .tag.overdue{background:rgba(255,77,109,.14);color:var(--high);border:1px solid rgba(255,77,109,.2)}
+    .task-date{font-size:10px;color:var(--muted)}
+    .task-acts{display:flex;gap:3px;flex-shrink:0}
+    .ic-btn{width:30px;height:30px;border-radius:8px;border:none;background:rgba(255,255,255,.05);color:var(--muted);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .2s}
+    .ic-btn:active{transform:scale(.85)}
+
+    /* CAT SECTION */
+    .cat-sec{margin-bottom:18px}
+    .cat-hdr{display:flex;align-items:center;gap:8px;margin-bottom:9px;padding-bottom:7px;border-bottom:1px solid var(--border)}
+    .cat-icon{font-size:17px}
+    .cat-name{font-family:'Syne';font-size:13.5px;font-weight:700;color:var(--text)}
+    .cat-cnt{margin-left:auto;font-size:11px;color:var(--muted);background:var(--card);padding:2px 8px;border-radius:99px;border:1px solid var(--border)}
+
+    /* EMPTY */
+    .empty{text-align:center;padding:55px 20px;display:flex;flex-direction:column;align-items:center;gap:10px}
+    .empty-icon{font-size:46px}
+    .empty-title{font-family:'Syne';font-size:17px;font-weight:700;color:var(--text)}
+    .empty-sub{font-size:13px;color:var(--muted);line-height:1.5}
+
+    /* FAB */
+    .fab{position:fixed;bottom:22px;right:18px;z-index:100;width:56px;height:56px;border-radius:17px;background:var(--accent);border:none;cursor:pointer;font-size:28px;color:#000;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 30px rgba(232,255,71,.35);transition:all .2s}
+    .fab:active{transform:scale(.88)}
+
+    /* MODAL */
+    .modal-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.72);backdrop-filter:blur(8px);display:none;align-items:flex-end;justify-content:center;animation:fadeIn .2s ease}
+    .modal-overlay.open{display:flex}
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    .modal{width:100%;max-width:520px;background:var(--surface);border-radius:22px 22px 0 0;padding:18px 18px 38px;border-top:1px solid var(--border);animation:slideModal .3s cubic-bezier(.175,.885,.32,1.1);max-height:92vh;overflow-y:auto}
+    @keyframes slideModal{from{transform:translateY(100%)}to{transform:translateY(0)}}
+    .modal-handle{width:38px;height:4px;border-radius:99px;background:var(--border);margin:0 auto 18px}
+    .modal-title{font-family:'Syne';font-size:19px;font-weight:800;color:var(--text);margin-bottom:18px}
+    .f-label{font-size:10.5px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:7px;display:block}
+    .f-input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:11px;padding:12px 13px;color:var(--text);font-family:'DM Sans';font-size:14.5px;outline:none;transition:border-color .2s;margin-bottom:14px;-webkit-appearance:none}
+    .f-input:focus{border-color:rgba(232,255,71,.4)}
+    .f-input::placeholder{color:var(--muted)}
+    textarea.f-input{resize:none;min-height:72px}
+    select.f-input{cursor:pointer}
+    select.f-input option{background:#1a1a2e}
+    .f-row{display:flex;gap:9px;margin-bottom:14px}
+    .f-grp{flex:1}
+    .f-grp .f-label{margin-bottom:7px}
+    .f-grp .f-input{margin-bottom:0}
+    .pri-row{display:flex;gap:7px;margin-bottom:18px}
+    .p-btn{flex:1;padding:9px 0;border-radius:10px;border:1px solid transparent;font-family:'DM Sans';font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;text-align:center}
+    .p-btn.high{background:rgba(255,77,109,.07);color:var(--high);border-color:rgba(255,77,109,.15)}
+    .p-btn.high.sel{background:rgba(255,77,109,.22);border-color:var(--high)}
+    .p-btn.medium{background:rgba(255,184,48,.07);color:var(--med);border-color:rgba(255,184,48,.15)}
+    .p-btn.medium.sel{background:rgba(255,184,48,.22);border-color:var(--med)}
+    .p-btn.low{background:rgba(57,229,140,.07);color:var(--low);border-color:rgba(57,229,140,.15)}
+    .p-btn.low.sel{background:rgba(57,229,140,.22);border-color:var(--low)}
+    .p-btn:active{transform:scale(.94)}
+    .m-actions{display:flex;gap:9px}
+    .btn-cancel{flex:1;padding:14px;border-radius:13px;background:var(--card);border:1px solid var(--border);color:var(--muted);font-family:'DM Sans';font-size:14px;cursor:pointer;transition:all .2s}
+    .btn-save{flex:2;padding:14px;border-radius:13px;background:var(--accent);border:none;color:#000;font-family:'Syne';font-size:14px;font-weight:800;cursor:pointer;transition:all .2s;letter-spacing:-.3px}
+    .btn-save:active,.btn-cancel:active{transform:scale(.97)}
+
+    /* NOTIF STATUS INFO */
+    #notifStatus{text-align:center;padding:8px;font-size:12px;color:var(--muted);flex-shrink:0;background:var(--surface);border-bottom:1px solid var(--border);position:relative;z-index:5;display:none}
+    #notifStatus.show{display:block}
+  </style>
+</head>
+<body>
+
+<!-- NOTIFICATION PERMISSION BANNER -->
+<div id="permBanner">
+  <span>🔔 Enable notifications so NAVEEN Tasks can remind you about pending tasks!</span>
+  <button onclick="askPermission()">Allow</button>
+  <button class="h-btn" id="permBannerClose" onclick="closeBanner()" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:0 4px">×</button>
+</div>
+
+<!-- OFFLINE BAR -->
+<div class="offline-bar">📵 Offline — all data saved locally on your device</div>
+
+<!-- TOAST -->
+<div id="toast">
+  <div class="t-icon" id="tIcon">🔔</div>
+  <div class="t-body">
+    <div class="t-title" id="tTitle">Reminder</div>
+    <div class="t-msg" id="tMsg"></div>
+  </div>
+  <button class="t-close" onclick="hideToast()">×</button>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div>
+    <div class="h-greeting">Welcome back,</div>
+    <div class="h-name">NAVEEN</div>
+  </div>
+  <div class="h-actions">
+    <button class="h-btn" id="bellBtn" onclick="bellClick()" title="Notifications">
+      🔔
+      <span class="h-badge" id="hBadge"></span>
+    </button>
+  </div>
+</header>
+
+<!-- STATS -->
+<div class="stats-row">
+  <div class="stat"><span class="stat-n" id="sTotal" style="color:var(--accent3)">0</span><span class="stat-l">Total</span></div>
+  <div class="stat"><span class="stat-n" id="sPending" style="color:var(--med)">0</span><span class="stat-l">Pending</span></div>
+  <div class="stat"><span class="stat-n" id="sDone" style="color:var(--low)">0</span><span class="stat-l">Done</span></div>
+  <div class="stat"><span class="stat-n" id="sHigh" style="color:var(--high)">0</span><span class="stat-l">Urgent</span></div>
+</div>
+
+<!-- PROGRESS -->
+<div class="prog-wrap">
+  <div class="prog-lbl" id="progLbl">0% complete</div>
+  <div class="prog-track"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+</div>
+
+<!-- SEARCH -->
+<div class="search-wrap" style="position:relative">
+  <span class="search-icon">🔍</span>
+  <input class="search-inp" id="searchInp" type="text" placeholder="Search tasks…" oninput="render()" autocomplete="off"/>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" id="tab-all"     onclick="setTab('all')">All</button>
+  <button class="tab"        id="tab-pending" onclick="setTab('pending')">Pending</button>
+  <button class="tab"        id="tab-done"    onclick="setTab('done')">Done</button>
+  <button class="tab"        id="tab-high"    onclick="setTab('high')">🔴 Urgent</button>
+</div>
+
+<!-- NOTIF STATUS -->
+<div id="notifStatus"></div>
+
+<!-- TASK LIST -->
+<main id="list"></main>
+
+<!-- FAB -->
+<button class="fab" onclick="openModal()">+</button>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="overlayClick(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modalTitle">Add New Task</div>
+
+    <label class="f-label">Task Title *</label>
+    <input class="f-input" id="fTitle" type="text" placeholder="What needs to be done?" maxlength="120"/>
+
+    <label class="f-label">Description (optional)</label>
+    <textarea class="f-input" id="fDesc" placeholder="Add details…" rows="3"></textarea>
+
+    <div class="f-row">
+      <div class="f-grp">
+        <label class="f-label">Category</label>
+        <select class="f-input" id="fCat">
+          <option>📋 General</option>
+          <option>💼 Work</option>
+          <option>🏠 Personal</option>
+          <option>🏥 Health</option>
+          <option>📚 Learning</option>
+          <option>🛒 Shopping</option>
+          <option>💡 Ideas</option>
+          <option>🎯 Goals</option>
+        </select>
+      </div>
+      <div class="f-grp">
+        <label class="f-label">Due Date</label>
+        <input class="f-input" id="fDue" type="date"/>
+      </div>
+    </div>
+
+    <label class="f-label">Priority</label>
+    <div class="pri-row">
+      <button class="p-btn high"   id="ph" onclick="setPri('high')">🔴 High</button>
+      <button class="p-btn medium sel" id="pm" onclick="setPri('medium')">🟡 Medium</button>
+      <button class="p-btn low"    id="pl" onclick="setPri('low')">🟢 Low</button>
+    </div>
+
+    <div class="m-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save"   onclick="saveTask()">Save Task</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let tasks = [];
+try { tasks = JSON.parse(localStorage.getItem('naveen_tasks') || '[]'); } catch(e){ tasks=[]; }
+let activeTab = 'all';
+let editId    = null;
+let selPri    = 'medium';
+let toastTmr  = null;
+let notifIdx  = 0;
+
+const MSGS = [
+  {icon:'⚡',title:'Hey NAVEEN!',       msg:"You've got pending tasks — let's knock them out!"},
+  {icon:'🎯',title:'Focus Time!',        msg:'Pick one task right now and crush it, NAVEEN.'},
+  {icon:'🔥',title:'Stay on Track!',     msg:"Don't let tasks pile up. Check what's pending!"},
+  {icon:'⏰',title:'Time Check, NAVEEN!',msg:'Time is flying. Any quick tasks you can finish?'},
+  {icon:'💪',title:'You Got This!',      msg:'Small progress every day — check off a task now!'},
+  {icon:'🚀',title:'Boost Mode!',        msg:'NAVEEN, your high-priority tasks need attention!'},
+  {icon:'📌',title:'Quick Reminder!',    msg:'Tasks are waiting. Stay ahead of the game!'},
+  {icon:'🌟',title:"NAVEEN's Daily Push",msg:'Complete one task now and feel the momentum!'},
+];
+
+// ─── STORAGE ──────────────────────────────────────────────────────────────────
+function persist(){ try{ localStorage.setItem('naveen_tasks', JSON.stringify(tasks)); }catch(e){} }
+function save(){ persist(); render(); updateStats(); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function fmtD(iso){
+  if(!iso) return '';
+  const d = new Date(iso+'T00:00:00');
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function render(){
+  const q = (document.getElementById('searchInp').value||'').toLowerCase();
+  const now = new Date(); now.setHours(0,0,0,0);
+  let list = tasks.filter(t => {
+    if(q && !t.title.toLowerCase().includes(q) && !(t.desc||'').toLowerCase().includes(q)) return false;
+    if(activeTab==='pending') return !t.done;
+    if(activeTab==='done')    return  t.done;
+    if(activeTab==='high')    return  t.priority==='high' && !t.done;
+    return true;
+  });
+
+  const el = document.getElementById('list');
+  if(!list.length){
+    el.innerHTML = `<div class="empty">
+      <div class="empty-icon">${activeTab==='done'?'✅':activeTab==='high'?'🎉':'📭'}</div>
+      <div class="empty-title">${activeTab==='done'?'Nothing completed yet':activeTab==='high'?'No urgent tasks!':'No tasks here'}</div>
+      <div class="empty-sub">${q?'No tasks match your search.':activeTab==='high'?'Great job — all urgent tasks handled!':'Tap <b>+</b> to add your first task!'}</div>
+    </div>`;
+    return;
+  }
+
+  // Group by category
+  const groups = {};
+  list.forEach(t => { const c=t.cat||'📋 General'; (groups[c]=groups[c]||[]).push(t); });
+
+  el.innerHTML = Object.entries(groups).map(([cat,items]) => {
+    const [icon,...rest] = cat.split(' ');
+    return `<div class="cat-sec">
+      <div class="cat-hdr">
+        <span class="cat-icon">${icon}</span>
+        <span class="cat-name">${rest.join(' ')}</span>
+        <span class="cat-cnt">${items.length}</span>
+      </div>
+      ${items.map(t => {
+        const overdue = t.due && !t.done && new Date(t.due+'T00:00:00') < now;
+        return `<div class="task-card ${t.priority}${t.done?' done':''}">
+          <div class="chk${t.done?' on':''}" onclick="toggle('${t.id}')"></div>
+          <div class="task-body">
+            <div class="task-txt">${esc(t.title)}</div>
+            ${t.desc?`<div class="task-sub">${esc(t.desc)}</div>`:''}
+            <div class="task-meta">
+              <span class="tag ${t.priority}">${t.priority==='high'?'🔴 High':t.priority==='medium'?'🟡 Medium':'🟢 Low'}</span>
+              ${t.due?`<span class="tag ${overdue?'overdue':'due'}">📅 ${fmtD(t.due)}${overdue?' ⚠':''}</span>`:''}
+              <span class="task-date">${fmtD(t.createdAt.slice(0,10))}</span>
+            </div>
+          </div>
+          <div class="task-acts">
+            <button class="ic-btn" onclick="editTask('${t.id}')">✏️</button>
+            <button class="ic-btn" onclick="delTask('${t.id}')">🗑</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+}
+
+function updateStats(){
+  const total   = tasks.length;
+  const done    = tasks.filter(t=>t.done).length;
+  const pending = total-done;
+  const high    = tasks.filter(t=>t.priority==='high'&&!t.done).length;
+  const pct     = total?Math.round((done/total)*100):0;
+  document.getElementById('sTotal').textContent   = total;
+  document.getElementById('sPending').textContent = pending;
+  document.getElementById('sDone').textContent    = done;
+  document.getElementById('sHigh').textContent    = high;
+  document.getElementById('progFill').style.width = pct+'%';
+  document.getElementById('progLbl').textContent  = pct+'% complete';
+  const badge = document.getElementById('hBadge');
+  if(high>0){ badge.textContent=high; badge.style.display='flex'; }
+  else badge.style.display='none';
+}
+
+// ─── TASK ACTIONS ─────────────────────────────────────────────────────────────
+function toggle(id){ const t=tasks.find(x=>x.id===id); if(t){t.done=!t.done;save();} }
+function delTask(id){ if(!confirm('Delete this task?')) return; tasks=tasks.filter(x=>x.id!==id); save(); }
+function editTask(id){
+  const t=tasks.find(x=>x.id===id); if(!t) return;
+  editId=id;
+  document.getElementById('modalTitle').textContent='Edit Task';
+  document.getElementById('fTitle').value=t.title;
+  document.getElementById('fDesc').value=t.desc||'';
+  document.getElementById('fCat').value=t.cat||'📋 General';
+  document.getElementById('fDue').value=t.due||'';
+  setPri(t.priority||'medium');
+  showModal();
+}
+function saveTask(){
+  const title=document.getElementById('fTitle').value.trim();
+  if(!title){ document.getElementById('fTitle').focus(); return; }
+  const desc=document.getElementById('fDesc').value.trim();
+  const cat=document.getElementById('fCat').value;
+  const due=document.getElementById('fDue').value;
+  if(editId){
+    const t=tasks.find(x=>x.id===editId);
+    if(t){t.title=title;t.desc=desc;t.cat=cat;t.due=due;t.priority=selPri;}
+  } else {
+    tasks.unshift({id:uid(),title,desc,cat,due,priority:selPri,done:false,createdAt:new Date().toISOString()});
+  }
+  save(); closeModal();
+  toast('✅','Task Saved!', editId?'Task updated!': `"${title}" added!`, 3500);
+}
+
+// ─── MODAL ────────────────────────────────────────────────────────────────────
+function openModal(){
+  editId=null;
+  document.getElementById('modalTitle').textContent='Add New Task';
+  document.getElementById('fTitle').value='';
+  document.getElementById('fDesc').value='';
+  document.getElementById('fCat').value='📋 General';
+  document.getElementById('fDue').value='';
+  setPri('medium');
+  showModal();
+}
+function showModal(){
+  document.getElementById('modalOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('fTitle').focus(),320);
+}
+function closeModal(){ document.getElementById('modalOverlay').classList.remove('open'); editId=null; }
+function overlayClick(e){ if(e.target.id==='modalOverlay') closeModal(); }
+function setPri(p){
+  selPri=p;
+  ['high','medium','low'].forEach(x=>document.getElementById('p'+x[0]).classList.toggle('sel',x===p));
+}
+
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+function setTab(tab){
+  activeTab=tab;
+  ['all','pending','done','high'].forEach(t=>document.getElementById('tab-'+t).classList.toggle('active',t===tab));
+  render();
+}
+
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+function toast(icon,title,msg,dur=5000){
+  clearTimeout(toastTmr);
+  document.getElementById('tIcon').textContent=icon;
+  document.getElementById('tTitle').textContent=title;
+  document.getElementById('tMsg').textContent=msg;
+  const el=document.getElementById('toast');
+  el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+  toastTmr=setTimeout(hideToast,dur);
+}
+function hideToast(){ document.getElementById('toast').classList.remove('show'); }
+
+// ─── NOTIFICATION SYSTEM (fixed, robust) ─────────────────────────────────────
+function getPermState(){
+  if(!('Notification' in window)) return 'unsupported';
+  return Notification.permission; // 'default' | 'granted' | 'denied'
+}
+
+function updateBellUI(){
+  const btn=document.getElementById('bellBtn');
+  const p=getPermState();
+  btn.className='h-btn';
+  if(p==='granted')  btn.classList.add('granted');
+  else if(p==='denied') btn.classList.add('denied');
+}
+
+// Show permission banner if not yet asked
+function maybeShowBanner(){
+  if(getPermState()==='default'){
+    document.getElementById('permBanner').classList.add('show');
+  }
+}
+function closeBanner(){ document.getElementById('permBanner').classList.remove('show'); }
+
+function askPermission(){
+  closeBanner();
+  if(!('Notification' in window)){
+    toast('⚠️','Not Supported','Your browser does not support notifications. In-app reminders still work!',5000);
+    return;
+  }
+  if(Notification.permission==='granted'){
+    toast('✅','Already ON!','Native notifications are already enabled.',3000);
+    updateBellUI(); return;
+  }
+  if(Notification.permission==='denied'){
+    toast('🔕','Blocked','Go to browser Settings → Site Settings → Notifications and allow this site.',7000);
+    updateBellUI(); return;
+  }
+  // Request
+  Notification.requestPermission().then(function(result){
+    updateBellUI();
+    if(result==='granted'){
+      toast('🔔','Notifications ON!','NAVEEN will now get native reminders too!',4000);
+      // Test notification
+      setTimeout(function(){
+        tryNativeNotif('🎉 Notifications Active!','NAVEEN Tasks will remind you every 30 seconds!');
+      },1000);
+    } else if(result==='denied'){
+      toast('🔕','Permission Denied','In-app toast reminders still work every 30 seconds.',5000);
+    } else {
+      toast('ℹ️','Dismissed','Tap the 🔔 bell any time to enable notifications.',4000);
+    }
+  }).catch(function(err){
+    // Some browsers (iOS) don't return a promise from requestPermission
+    updateBellUI();
+    toast('ℹ️','Try Again','Tap Allow in the browser popup if it appeared.',4000);
+  });
+}
+
+function bellClick(){
+  const p=getPermState();
+  if(p==='unsupported'){
+    toast('⚠️','Not Supported','In-app reminders fire every 30 seconds automatically.',5000);
+  } else if(p==='granted'){
+    toast('✅','Notifications ON','You are receiving reminders. In-app + native notifications active.',4000);
+  } else if(p==='denied'){
+    toast('🔕','Notifications Blocked','Go to browser/site settings, allow notifications, then reload.',7000);
+  } else {
+    askPermission();
+  }
+}
+
+function tryNativeNotif(title, body){
+  if(getPermState()!=='granted') return;
+  try{
+    // Use service worker notification if available (more reliable on mobile)
+    if(navigator.serviceWorker && navigator.serviceWorker.controller){
+      navigator.serviceWorker.ready.then(function(reg){
+        reg.showNotification(title,{
+          body:body, icon:'', tag:'naveen-reminder', renotify:true
+        }).catch(function(){ fallbackNotif(title,body); });
+      }).catch(function(){ fallbackNotif(title,body); });
+    } else {
+      fallbackNotif(title,body);
+    }
+  } catch(e){ fallbackNotif(title,body); }
+}
+
+function fallbackNotif(title,body){
+  try{ new Notification(title,{body:body,tag:'naveen-reminder',renotify:true}); }catch(e){}
+}
+
+// Main reminder function — always fires in-app toast, optionally native
+function fireReminder(){
+  const pending=tasks.filter(t=>!t.done).length;
+  if(pending===0){
+    toast('🎉','All Done!','Amazing NAVEEN — all tasks are complete!',5000);
+    return;
+  }
+  const n=MSGS[notifIdx%MSGS.length]; notifIdx++;
+  const fullMsg=n.msg+' ('+pending+' task'+(pending===1?'':'s')+' pending)';
+  // Always show in-app toast
+  toast(n.icon, n.title, fullMsg, 7000);
+  // Also send native notification if permitted
+  tryNativeNotif(n.title, fullMsg);
+}
+
+function startReminders(){
+  // First reminder after 8 seconds
+  setTimeout(fireReminder, 8000);
+  // Then every 30 seconds
+  setInterval(fireReminder, 30000);
+}
+
+// ─── NOTIF STATUS LINE ────────────────────────────────────────────────────────
+function showNotifStatusLine(){
+  const el=document.getElementById('notifStatus');
+  const p=getPermState();
+  if(p==='unsupported'){
+    el.textContent='ℹ️ In-app reminders active every 30s (native notifications not supported in this browser)';
+    el.classList.add('show');
+  } else if(p==='denied'){
+    el.textContent='🔕 Native notifications blocked — tap 🔔 for instructions. In-app reminders still active.';
+    el.classList.add('show');
+  } else {
+    el.classList.remove('show');
+  }
+}
+
+// ─── OFFLINE ──────────────────────────────────────────────────────────────────
+function checkOnline(){ document.body.classList.toggle('offline',!navigator.onLine); }
+window.addEventListener('online',checkOnline);
+window.addEventListener('offline',checkOnline);
+checkOnline();
+
+// ─── SERVICE WORKER ───────────────────────────────────────────────────────────
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(function(){});
+}
+
+// ─── SEED ─────────────────────────────────────────────────────────────────────
+function seed(){
+  if(tasks.length) return;
+  tasks=[
+    {id:uid(),title:"Review today's goals",desc:'Check what needs to be accomplished',cat:'🎯 Goals',due:'',priority:'high',done:false,createdAt:new Date().toISOString()},
+    {id:uid(),title:'Complete project report',desc:'Finish the Q3 summary document',cat:'💼 Work',due:'',priority:'high',done:false,createdAt:new Date().toISOString()},
+    {id:uid(),title:'Morning workout',desc:'30 min jog or yoga',cat:'🏥 Health',due:'',priority:'medium',done:false,createdAt:new Date().toISOString()},
+    {id:uid(),title:'Read for 20 minutes',desc:'Continue the current book',cat:'📚 Learning',due:'',priority:'low',done:false,createdAt:new Date().toISOString()},
+    {id:uid(),title:'Reply to emails',desc:'',cat:'💼 Work',due:'',priority:'medium',done:true,createdAt:new Date().toISOString()},
+  ];
+  persist();
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+seed();
+render();
+updateStats();
+updateBellUI();
+maybeShowBanner();
+showNotifStatusLine();
+startReminders();
+
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape') closeModal();
+  if(e.key==='n' && !document.getElementById('modalOverlay').classList.contains('open')
+     && document.activeElement.tagName!=='INPUT' && document.activeElement.tagName!=='TEXTAREA'){
+    openModal();
+  }
+});
+</script>
+</body>
+</html>
